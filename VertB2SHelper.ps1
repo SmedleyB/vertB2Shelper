@@ -43,8 +43,17 @@ function Clear-LoadedImages {
 function Get-NodeText {
     param([System.Xml.XmlNode]$Node)
 
+    if ($null -eq $Node) {
+        return $null
+    }
+
     foreach ($property in @('Image', 'Content', 'Value', 'InnerText')) {
-        $value = $Node.$property
+        $propertyInfo = $Node.PSObject.Properties[$property]
+        if ($null -eq $propertyInfo) {
+            continue
+        }
+
+        $value = $propertyInfo.Value
         if (-not [string]::IsNullOrWhiteSpace([string]$value)) {
             return ([string]$value).Trim()
         }
@@ -55,6 +64,10 @@ function Get-NodeText {
 
 function Get-Base64ImageText {
     param([System.Xml.XmlNodeList]$Nodes)
+
+    if ($null -eq $Nodes) {
+        return $null
+    }
 
     foreach ($node in $Nodes) {
         $candidate = Get-NodeText $node
@@ -102,9 +115,14 @@ function Get-XmlNodeValue {
     if ($null -eq $Node) { return $null }
 
     foreach ($property in @('Value', 'InnerText', 'Image')) {
-        $value = [string]$Node.$property
-        if (-not [string]::IsNullOrWhiteSpace($value)) {
-            return $value.Trim()
+        $propertyInfo = $Node.PSObject.Properties[$property]
+        if ($null -eq $propertyInfo) {
+            continue
+        }
+
+        $value = $propertyInfo.Value
+        if (-not [string]::IsNullOrWhiteSpace([string]$value)) {
+            return ([string]$value).Trim()
         }
     }
 
