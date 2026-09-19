@@ -35,7 +35,7 @@ The script is intended for Windows PowerShell. It uses Windows Forms and is not 
 
 1. Download or clone this repository.
 2. Open Windows PowerShell.
-3. Run the script:
+3. Run the script (or right click in explorer and run from menu):
 
    ```powershell
    .\VertB2SHelper.ps1
