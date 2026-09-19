@@ -36,10 +36,11 @@ function Clear-LoadedImages {
 function Get-NodeText {
     param([System.Xml.XmlNode]$Node)
     if ($null -eq $Node) { return $null }
-    foreach ($property in @('Image', 'Content', 'Value', 'InnerText')) {
-        $propertyInfo = $Node.PSObject.Properties[$property]
-        if ($null -eq $propertyInfo) { continue }
-        $value = [string]$propertyInfo.Value
+
+    foreach ($propertyName in @('Image', 'Content', 'Value', 'InnerText')) {
+        $property = $Node.PSObject.Properties[$propertyName]
+        if ($null -eq $property) { continue }
+        $value = [string]$property.Value
         if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
     }
     return $null
@@ -48,6 +49,7 @@ function Get-NodeText {
 function Get-Base64ImageText {
     param([System.Xml.XmlNodeList]$Nodes)
     if ($null -eq $Nodes) { return $null }
+
     foreach ($node in $Nodes) {
         $candidate = Get-NodeText $node
         if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
@@ -63,6 +65,7 @@ function Get-Base64ImageText {
 function Convert-Base64ToBitmap {
     param([string]$Base64Text)
     if ([string]::IsNullOrWhiteSpace($Base64Text)) { return $null }
+
     $bytes = [Convert]::FromBase64String(($Base64Text -replace '\s+', ''))
     $stream = [System.IO.MemoryStream]::new($bytes)
     $image = $null
@@ -94,6 +97,24 @@ function Get-XmlNodeValue {
         if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
     }
     return $null
+}
+
+function Get-GrillHeight {
+    param([System.Xml.XmlDocument]$Xml)
+
+    foreach ($node in $Xml.SelectNodes('//*[local-name()="GrillHeight"]')) {
+        $text = Get-XmlNodeValue $node
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+
+        $match = [regex]::Match($text, '\d+')
+        if ($match.Success) {
+            $height = 0
+            if ([int]::TryParse($match.Value, [ref]$height) -and $height -gt 0) {
+                return $height
+            }
+        }
+    }
+    return 0
 }
 
 function Get-Layout {
@@ -138,26 +159,20 @@ function Get-Layout {
     $backglassX = 0
     $secondaryX = [int][math]::Round(($MonitorWidth - $SecondaryWidth) / 2)
 
+    # A grill is part of the backglass image in B2S. It has no independent
+    # ScreenRes position. The separate grill preview is only for visualization.
     if ($SecondaryIsGrill) {
-        # B2SServer does not read a separate grill position from .res. The
-        # grill is always immediately below the backglass. Therefore a bottom
-        # offset is measured from the bottom of the grill, not the backglass.
         if ($TopOffset -gt 0) {
             $backglassY = $TopOffset
         }
         else {
-            $backglassY = $MonitorHeight - $BottomOffset - $secondaryHeight - $Gap - $backglassHeight
+            $backglassY = $MonitorHeight - $BottomOffset - $backglassHeight
         }
-        $secondaryY = $backglassY + $backglassHeight + $Gap
+        $secondaryY = $backglassY + $backglassHeight
     }
     else {
         $stackHeight = $backglassHeight + $Gap + $secondaryHeight
-        if ($TopOffset -gt 0) {
-            $stackTop = $TopOffset
-        }
-        else {
-            $stackTop = $MonitorHeight - $BottomOffset - $stackHeight
-        }
+        $stackTop = if ($TopOffset -gt 0) { $TopOffset } else { $MonitorHeight - $BottomOffset - $stackHeight }
 
         if ($Order -eq 'Backglass Top / Secondary Bottom') {
             $backglassY = $stackTop
@@ -202,30 +217,41 @@ function Get-Layout {
 function Get-ResContent {
     param([pscustomobject]$Layout)
 
-    # B2S uses a negative DMD Y offset when the DMD is stacked above the
-    # backglass. Keep the existing backglass Y value for all other layouts.
-    $resY = $Layout.BackglassY
-    if (-not $Layout.SecondaryIsGrill -and $Layout.SecondaryY -lt $Layout.BackglassY) {
-        $resY = $Layout.SecondaryY - $Layout.BackglassY
+    # ScreenRes.txt/.res format, in order:
+    # playfield W/H, backglass W/H, display device, backglass X/Y,
+    # DMD W/H, DMD X/Y, Y-flip, background X/Y/W/H, background image.
+    # Grill fields do not exist: the grill is part of the backglass image.
+    $dmdWidth = 0
+    $dmdHeight = 0
+    $dmdX = 0
+    $dmdY = 0
+
+    if (-not $Layout.SecondaryIsGrill) {
+        $dmdWidth = $Layout.SecondaryWidth
+        $dmdHeight = $Layout.SecondaryHeight
+        $dmdX = $Layout.SecondaryX
+        # The helper's above-backglass layout uses a relative negative offset.
+        $dmdY = $Layout.SecondaryY - $Layout.BackglassY
     }
 
     @(
         3840
         2160
-        $Layout.MonitorWidth
-        $Layout.MonitorHeight
-        1
-        3840
-        0
-        0
-        0
-        0
-        0
-        0
-        $Layout.BackglassX
-        $resY
         $Layout.BackglassWidth
         $Layout.BackglassHeight
+        1
+        $Layout.BackglassX
+        $Layout.BackglassY
+        $dmdWidth
+        $dmdHeight
+        $dmdX
+        $dmdY
+        0
+        0
+        0
+        0
+        0
+        'black'
     ) -join [Environment]::NewLine
 }
 
@@ -241,7 +267,6 @@ $panelControls.Size = [System.Drawing.Size]::new(380, 780)
 $panelControls.Location = [System.Drawing.Point]::new(10, 10)
 [void]$form.Controls.Add($panelControls)
 
-$y = 10
 function Add-Label {
     param([string]$Text, [int]$Top, [bool]$Bold = $false)
     $label = [System.Windows.Forms.Label]::new()
@@ -253,7 +278,8 @@ function Add-Label {
     return $label
 }
 
-$lblFile = Add-Label 'Select .directb2s File:' $y
+$y = 10
+[void](Add-Label 'Select .directb2s File:' $y)
 $y += 22
 $txtFile = [System.Windows.Forms.TextBox]::new()
 $txtFile.Location = [System.Drawing.Point]::new(10, $y)
@@ -274,7 +300,7 @@ $separator.Location = [System.Drawing.Point]::new(10, $y)
 [void]$panelControls.Controls.Add($separator)
 $y += 15
 
-$lblMon = Add-Label 'Backglass Monitor Resolution (W x H):' $y $true
+[void](Add-Label 'Backglass Monitor Resolution (W x H):' $y $true)
 $y += 25
 $numMonW = [System.Windows.Forms.NumericUpDown]::new()
 $numMonW.Minimum = 500; $numMonW.Maximum = 7680; $numMonW.Value = 1440
@@ -294,11 +320,13 @@ $chkCutGrill = [System.Windows.Forms.CheckBox]::new()
 $chkCutGrill.Text = 'Crop Embedded Grill from Backglass'
 $chkCutGrill.Location = [System.Drawing.Point]::new(10, $y)
 $chkCutGrill.AutoSize = $true
+# It is enabled after a valid backglass has loaded. If no grill height is
+# present, checking it simply has no effect and the status explains why.
 $chkCutGrill.Enabled = $false
 [void]$panelControls.Controls.Add($chkCutGrill)
 
 $y += 35
-$lblType = Add-Label 'Secondary Element:' $y
+[void](Add-Label 'Secondary Element:' $y)
 $cmbType = [System.Windows.Forms.ComboBox]::new()
 [void]$cmbType.Items.AddRange(@('DMD Image', 'Grill Image'))
 $cmbType.SelectedIndex = 0; $cmbType.DropDownStyle = 'DropDownList'
@@ -306,21 +334,21 @@ $cmbType.Location = [System.Drawing.Point]::new(150, $y - 3); $cmbType.Size = [S
 [void]$panelControls.Controls.Add($cmbType)
 
 $y += 30
-$lblTopOffset = Add-Label 'Top Offset (px):' $y
+[void](Add-Label 'Top Offset (px):' $y)
 $numTopOffset = [System.Windows.Forms.NumericUpDown]::new()
-$numTopOffset.Minimum = 0; $numTopOffset.Maximum = 7680; $numTopOffset.Value = 0
+$numTopOffset.Minimum = 0; $numTopOffset.Maximum = 7680
 $numTopOffset.Location = [System.Drawing.Point]::new(150, $y - 3); $numTopOffset.Size = [System.Drawing.Size]::new(100, 23)
 [void]$panelControls.Controls.Add($numTopOffset)
 
 $y += 30
-$lblBottomOffset = Add-Label 'Bottom Offset (px):' $y
+[void](Add-Label 'Bottom Offset (px):' $y)
 $numBottomOffset = [System.Windows.Forms.NumericUpDown]::new()
-$numBottomOffset.Minimum = 0; $numBottomOffset.Maximum = 7680; $numBottomOffset.Value = 0
+$numBottomOffset.Minimum = 0; $numBottomOffset.Maximum = 7680
 $numBottomOffset.Location = [System.Drawing.Point]::new(150, $y - 3); $numBottomOffset.Size = [System.Drawing.Size]::new(100, 23)
 [void]$panelControls.Controls.Add($numBottomOffset)
 
 $y += 30
-$lblOrder = Add-Label 'Vertical Stacking Order:' $y
+[void](Add-Label 'Vertical Stacking Order:' $y)
 $cmbOrder = [System.Windows.Forms.ComboBox]::new()
 [void]$cmbOrder.Items.AddRange(@('Backglass Top / Secondary Bottom', 'Secondary Top / Backglass Bottom'))
 $cmbOrder.SelectedIndex = 0; $cmbOrder.DropDownStyle = 'DropDownList'
@@ -328,14 +356,14 @@ $cmbOrder.Location = [System.Drawing.Point]::new(150, $y - 3); $cmbOrder.Size = 
 [void]$panelControls.Controls.Add($cmbOrder)
 
 $y += 30
-$lblDmdW = Add-Label 'Secondary Width (px):' $y
+[void](Add-Label 'Secondary Width (px):' $y)
 $numDmdW = [System.Windows.Forms.NumericUpDown]::new()
 $numDmdW.Minimum = 100; $numDmdW.Maximum = 3840; $numDmdW.Value = 1080
 $numDmdW.Location = [System.Drawing.Point]::new(150, $y - 3); $numDmdW.Size = [System.Drawing.Size]::new(100, 23)
 [void]$panelControls.Controls.Add($numDmdW)
 
 $y += 30
-$lblGap = Add-Label 'Element Gap (px):' $y
+[void](Add-Label 'Element Gap (px):' $y)
 $numGap = [System.Windows.Forms.NumericUpDown]::new()
 $numGap.Minimum = 0; $numGap.Maximum = 500; $numGap.Value = 20
 $numGap.Location = [System.Drawing.Point]::new(150, $y - 3); $numGap.Size = [System.Drawing.Size]::new(100, 23)
@@ -372,21 +400,12 @@ function Update-Preview {
     $activeBitmap = if ($secondaryIsGrill) { $script:State.Grill } else { $script:State.Dmd }
 
     try {
-        $layoutParameters = @{
-            MonitorWidth    = [int]$numMonW.Value
-            MonitorHeight   = [int]$numMonH.Value
-            Backglass       = $script:State.Backglass
-            Secondary       = $activeBitmap
-            GrillHeight     = $script:State.GrillHeight
-            CropGrill       = $chkCutGrill.Checked
-            SecondaryWidth  = [int]$numDmdW.Value
-            Gap             = [int]$numGap.Value
-            TopOffset       = [int]$numTopOffset.Value
-            BottomOffset    = [int]$numBottomOffset.Value
-            Order           = [string]$cmbOrder.SelectedItem
-            SecondaryIsGrill = $secondaryIsGrill
-        }
-        $layout = Get-Layout @layoutParameters
+        $layout = Get-Layout -MonitorWidth ([int]$numMonW.Value) -MonitorHeight ([int]$numMonH.Value) `
+            -Backglass $script:State.Backglass -Secondary $activeBitmap `
+            -GrillHeight $script:State.GrillHeight -CropGrill $chkCutGrill.Checked `
+            -SecondaryWidth ([int]$numDmdW.Value) -Gap ([int]$numGap.Value) `
+            -TopOffset ([int]$numTopOffset.Value) -BottomOffset ([int]$numBottomOffset.Value) `
+            -Order ([string]$cmbOrder.SelectedItem) -SecondaryIsGrill $secondaryIsGrill
     }
     catch {
         $txtStatus.Text = "Layout error:`r`n$($_.Exception.Message)"
@@ -395,14 +414,15 @@ function Update-Preview {
 
     $script:State.CalculatedRes = $layout
     $warningText = if ($layout.Warnings.Count -gt 0) { "`r`nWARNINGS:`r`n - " + ($layout.Warnings -join "`r`n - ") } else { '' }
-    $positionNote = if ($secondaryIsGrill) { 'Grill is fixed immediately below the backglass; bottom offset is measured from the bottom of the grill.' } else { 'DMD follows the selected stacking order.' }
+    $cropNote = if ($script:State.GrillHeight -gt 0) { "Crop checkbox is available; XML grill height is $($script:State.GrillHeight) px." } else { 'No XML grill height was found; cropping has no effect for this file.' }
+
     $txtStatus.Text = @"
 LAYOUT SETTINGS:
 Top Offset: $([int]$numTopOffset.Value) px
 Bottom Offset: $([int]$numBottomOffset.Value) px
 Order: $($cmbOrder.SelectedItem)
 Element Gap: $([int]$numGap.Value) px
-$positionNote
+$cropNote
 
 BACKGLASS RESULT:
 Original Image: $($script:State.Backglass.Width)x$($script:State.Backglass.Height) px
@@ -410,10 +430,10 @@ Effective Source: $($layout.SourceWidth)x$($layout.SourceHeight) px
 Grill Cropped: $($layout.GrillCropped)
 Render Output: $($layout.BackglassWidth)x$($layout.BackglassHeight) px at ($($layout.BackglassX),$($layout.BackglassY))
 
-$targetType RESULT:
+$targetType PREVIEW:
 Render Output: $($layout.SecondaryWidth)x$($layout.SecondaryHeight) px at ($($layout.SecondaryX),$($layout.SecondaryY))
 
-Note: the exported .res format stores backglass placement only.$warningText
+ScreenRes output includes DMD fields, but no grill position fields.$warningText
 "@
 
     $canvasWidth = $picPreview.ClientSize.Width
@@ -427,7 +447,6 @@ Note: the exported .res format stores backglass placement only.$warningText
         $drawMonitorHeight = [int][math]::Round($layout.MonitorHeight * $scale)
         $originX = [int][math]::Round(($canvasWidth - $drawMonitorWidth) / 2)
         $originY = [int][math]::Round(($canvasHeight - $drawMonitorHeight) / 2)
-
         $monitorRect = [System.Drawing.Rectangle]::new($originX, $originY, $drawMonitorWidth, $drawMonitorHeight)
         $graphics.FillRectangle([System.Drawing.Brushes]::Black, $monitorRect)
         $graphics.DrawRectangle([System.Drawing.Pens]::Cyan, $monitorRect)
@@ -446,7 +465,6 @@ Note: the exported .res format stores backglass placement only.$warningText
         $drawSecondaryW = [int][math]::Round($layout.SecondaryWidth * $scale)
         $drawSecondaryH = [int][math]::Round($layout.SecondaryHeight * $scale)
         $secondaryRect = [System.Drawing.Rectangle]::new($drawSecondaryX, $drawSecondaryY, $drawSecondaryW, $drawSecondaryH)
-
         if ($null -ne $activeBitmap) {
             $graphics.DrawImage($activeBitmap, $secondaryRect)
         }
@@ -472,44 +490,38 @@ function Load-DirectB2SFile {
         Clear-LoadedImages
         $script:State.XmlPath = $TargetPath
         $txtFile.Text = [System.IO.Path]::GetFileName($TargetPath)
-
-        $grillHeightNode = $xml.SelectSingleNode('//*[local-name()="GrillHeight"]')
-        $script:State.GrillHeight = 0
-        $grillText = Get-XmlNodeValue $grillHeightNode
-        if (-not [string]::IsNullOrWhiteSpace($grillText)) {
-            $heightMatch = [regex]::Match($grillText, '\d+')
-            if ($heightMatch.Success) { [void][int]::TryParse($heightMatch.Value, [ref]$script:State.GrillHeight) }
-        }
+        $script:State.GrillHeight = Get-GrillHeight $xml
 
         $txtStatus.Text = 'Loading backglass image...'; $txtStatus.Refresh(); [System.Windows.Forms.Application]::DoEvents()
         $script:State.Backglass = Convert-Base64ToBitmap (Get-Base64ImageText $xml.SelectNodes('//*[local-name()="BackglassImage"]'))
         if ($null -eq $script:State.Backglass) { throw 'Could not locate valid Base64 data in a BackglassImage node.' }
 
         $txtStatus.Text = 'Loading DMD image...'; $txtStatus.Refresh(); [System.Windows.Forms.Application]::DoEvents()
-        $dmdNodes = $xml.SelectNodes('//*[local-name()="DMDImage"]')
-        if ($null -ne $dmdNodes) { $script:State.Dmd = Convert-Base64ToBitmap (Get-Base64ImageText $dmdNodes) }
+        $script:State.Dmd = Convert-Base64ToBitmap (Get-Base64ImageText $xml.SelectNodes('//*[local-name()="DMDImage"]'))
 
         $txtStatus.Text = 'Loading grill image...'; $txtStatus.Refresh(); [System.Windows.Forms.Application]::DoEvents()
-        $grillNodes = $xml.SelectNodes('//*[local-name()="GrillImage"]')
-        if ($null -ne $grillNodes) { $script:State.Grill = Convert-Base64ToBitmap (Get-Base64ImageText $grillNodes) }
+        $script:State.Grill = Convert-Base64ToBitmap (Get-Base64ImageText $xml.SelectNodes('//*[local-name()="GrillImage"]'))
 
         if ($script:State.GrillHeight -gt 0) {
             $lblGrillInfo.Text = "XML Grill Height: $($script:State.GrillHeight) px"
-            $chkCutGrill.Enabled = $true
             $chkCutGrill.Checked = $true
         }
         else {
-            $lblGrillInfo.Text = 'XML Grill Height: 0 px (None)'
+            $lblGrillInfo.Text = 'XML Grill Height: 0 px (not specified)'
             $chkCutGrill.Checked = $false
-            $chkCutGrill.Enabled = $false
         }
 
+        # The option is deliberately enabled for every successfully loaded
+        # backglass. This prevents it from being permanently grayed out when
+        # a DirectB2S file stores grill metadata in an unexpected XML shape.
+        $chkCutGrill.Enabled = $true
         $btnSave.Enabled = $true
         Update-Preview
     }
     catch {
         Clear-LoadedImages
         $btnSave.Enabled = $false
+        $chkCutGrill.Enabled = $false
         $txtStatus.Text = "Error reading .directb2s file:`r`n$($_.Exception.Message)"
         [System.Windows.Forms.MessageBox]::Show("Error reading .directb2s file:`r`n$($_.Exception.Message)", 'File Load Error', 'OK', 'Error') | Out-Null
     }
