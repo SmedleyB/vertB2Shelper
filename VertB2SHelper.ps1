@@ -201,6 +201,14 @@ function Get-Layout {
 
 function Get-ResContent {
     param([pscustomobject]$Layout)
+
+    # B2S uses a negative DMD Y offset when the DMD is stacked above the
+    # backglass. Keep the existing backglass Y value for all other layouts.
+    $resY = $Layout.BackglassY
+    if (-not $Layout.SecondaryIsGrill -and $Layout.SecondaryY -lt $Layout.BackglassY) {
+        $resY = $Layout.SecondaryY - $Layout.BackglassY
+    }
+
     @(
         3840
         2160
@@ -215,7 +223,7 @@ function Get-ResContent {
         0
         0
         $Layout.BackglassX
-        $Layout.BackglassY
+        $resY
         $Layout.BackglassWidth
         $Layout.BackglassHeight
     ) -join [Environment]::NewLine
