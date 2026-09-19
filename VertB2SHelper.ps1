@@ -370,7 +370,7 @@ $y += 35
 $cmbType = Add-ComboControl -Items @('Grill', 'FullDMD') -Top $y
 $y += 30
 [void](Add-Label 'Offset Mode:' $y)
-$cmbOffsetMode = Add-ComboControl -Items @('Top Offset', 'Bottom Offset') -Top $y
+$cmbOffsetMode = Add-ComboControl -Items @('Bottom Offset', 'Top Offset') -Top $y
 $y += 30
 [void](Add-Label 'Offset (px):' $y)
 $numOffset = Add-NumberControl -Top $y -Minimum 0 -Maximum 7680 -Value 25 -Left 150
