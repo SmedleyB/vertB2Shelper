@@ -262,8 +262,8 @@ function Get-ResContent {
         '0'
         '# path to the background image (C:\path\Frame) or black if none selected'
         '#D:\images\image.jpg'
-    '# This line would turn off B2SWindowPunch if activated'
-    '#B2SWindowPunch=off'
+	'# This line would turn off B2SWindowPunch if activated'
+	'#B2SWindowPunch=off'
     ) -join [Environment]::NewLine
 }
 
@@ -273,7 +273,6 @@ $form.ClientSize = [System.Drawing.Size]::new(920, 820)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedSingle'
 $form.MaximizeBox = $false
-$form.MinimumSize = [System.Drawing.Size]::new(920, 820)
 
 $panelControls = [System.Windows.Forms.Panel]::new()
 $panelControls.Size = [System.Drawing.Size]::new(380, 780)
@@ -306,9 +305,6 @@ function Add-NumberControl {
     $number.Value = $Value
     $number.Location = [System.Drawing.Point]::new($Left, $Top - 3)
     $number.Size = [System.Drawing.Size]::new(100, 23)
-    $number.BackColor = [System.Drawing.Color]::FromArgb(14, 10, 34)
-    $number.ForeColor = [System.Drawing.Color]::FromArgb(245, 235, 255)
-    $number.BorderStyle = 'FixedSingle'
     [void]$panelControls.Controls.Add($number)
     return $number
 }
@@ -326,127 +322,8 @@ function Add-ComboControl {
     $combo.DropDownStyle = 'DropDownList'
     $combo.Location = [System.Drawing.Point]::new($Left, $Top - 3)
     $combo.Size = [System.Drawing.Size]::new(200, 23)
-    $combo.BackColor = [System.Drawing.Color]::FromArgb(14, 10, 34)
-    $combo.ForeColor = [System.Drawing.Color]::FromArgb(245, 235, 255)
-    $combo.FlatStyle = 'Flat'
     [void]$panelControls.Controls.Add($combo)
     return $combo
-}
-
-function Apply-VaporwaveTheme {
-    $theme = [ordered]@{
-        Background = [System.Drawing.Color]::FromArgb(10, 8, 25)
-        Panel      = [System.Drawing.Color]::FromArgb(35, 18, 61)
-        Input      = [System.Drawing.Color]::FromArgb(18, 12, 38)
-        Border     = [System.Drawing.Color]::FromArgb(0, 245, 255)
-        Accent     = [System.Drawing.Color]::FromArgb(255, 79, 216)
-        Accent2    = [System.Drawing.Color]::FromArgb(157, 78, 221)
-        Text       = [System.Drawing.Color]::FromArgb(245, 234, 255)
-        Muted      = [System.Drawing.Color]::FromArgb(180, 160, 220)
-        Success    = [System.Drawing.Color]::FromArgb(111, 255, 190)
-        Warning    = [System.Drawing.Color]::FromArgb(255, 191, 92)
-        PanelAlt   = [System.Drawing.Color]::FromArgb(48, 24, 79)
-    }
-
-    $titleFont = [System.Drawing.Font]::new([System.Drawing.SystemFonts]::MessageBoxFont.FontFamily, 10.0, [System.Drawing.FontStyle]::Bold)
-    $bodyFont  = [System.Drawing.Font]::new([System.Drawing.SystemFonts]::MessageBoxFont.FontFamily, 9.0, [System.Drawing.FontStyle]::Regular)
-
-    $form.BackColor = $theme.Background
-    $form.ForeColor = $theme.Text
-    $form.Font = $bodyFont
-    $panelControls.BackColor = $theme.Panel
-    $panelControls.ForeColor = $theme.Text
-
-    foreach ($control in $form.Controls) {
-        if ($null -eq $control) { continue }
-        if ($control -is [System.Windows.Forms.PictureBox]) {
-            $control.BackColor = $theme.Background
-            $control.BorderStyle = 'FixedSingle'
-        }
-    }
-
-    foreach ($control in $panelControls.Controls) {
-        if ($null -eq $control) { continue }
-
-        if ($control -is [System.Windows.Forms.Label]) {
-            $control.ForeColor = $theme.Text
-            $control.BackColor = $theme.Panel
-            if ($control.BorderStyle -ne 'None') {
-                $control.BorderStyle = 'None'
-            }
-            if ($control.Font -and $control.Font.Bold) {
-                $control.Font = $titleFont
-            }
-            else {
-                $control.Font = $bodyFont
-            }
-        }
-        elseif ($control -is [System.Windows.Forms.TextBox]) {
-            $control.BackColor = $theme.Input
-            $control.ForeColor = $theme.Text
-            $control.BorderStyle = 'FixedSingle'
-            $control.Font = $bodyFont
-        }
-        elseif ($control -is [System.Windows.Forms.Button]) {
-            $control.BackColor = $theme.PanelAlt
-            $control.ForeColor = $theme.Text
-            $control.FlatStyle = 'Flat'
-            $control.FlatAppearance.BorderColor = $theme.Border
-            $control.FlatAppearance.MouseOverBackColor = $theme.PanelAlt
-            $control.Font = $titleFont
-        }
-        elseif ($control -is [System.Windows.Forms.NumericUpDown]) {
-            $control.BackColor = $theme.Input
-            $control.ForeColor = $theme.Text
-            $control.BorderStyle = 'FixedSingle'
-            $control.Font = $bodyFont
-        }
-        elseif ($control -is [System.Windows.Forms.ComboBox]) {
-            $control.BackColor = $theme.Input
-            $control.ForeColor = $theme.Text
-            $control.FlatStyle = 'Flat'
-            $control.Font = $bodyFont
-        }
-        elseif ($control -is [System.Windows.Forms.CheckBox]) {
-            $control.ForeColor = $theme.Text
-            $control.BackColor = $theme.Panel
-            $control.Font = $bodyFont
-        }
-        elseif ($control -is [System.Windows.Forms.Panel]) {
-            $control.BackColor = $theme.Panel
-        }
-        elseif ($control -is [System.Windows.Forms.PictureBox]) {
-            $control.BackColor = $theme.Background
-        }
-    }
-
-    $btnSave.BackColor = [System.Drawing.Color]::FromArgb(46, 26, 76)
-    $btnSave.ForeColor = $theme.Text
-    $btnSave.FlatStyle = 'Flat'
-    $btnSave.FlatAppearance.BorderColor = $theme.Accent
-    $btnSave.FlatAppearance.BorderSize = 2
-    $btnSave.Font = $titleFont
-
-    $btnBrowse.BackColor = [System.Drawing.Color]::FromArgb(46, 26, 76)
-    $btnBrowse.ForeColor = $theme.Text
-    $btnBrowse.FlatStyle = 'Flat'
-    $btnBrowse.FlatAppearance.BorderColor = $theme.Border
-    $btnBrowse.FlatAppearance.BorderSize = 1
-    $btnBrowse.Font = $bodyFont
-
-    $txtStatus.BackColor = $theme.Input
-    $txtStatus.ForeColor = $theme.Text
-    $txtStatus.BorderStyle = 'FixedSingle'
-    $txtStatus.Font = $bodyFont
-
-    $txtFile.BackColor = $theme.Input
-    $txtFile.ForeColor = $theme.Text
-    $txtFile.BorderStyle = 'FixedSingle'
-    $txtFile.Font = $bodyFont
-
-    $lblGrillInfo.ForeColor = $theme.Text
-    $lblX.ForeColor = $theme.Text
-    $lblX.BackColor = $theme.Panel
 }
 
 $y = 10
@@ -456,19 +333,11 @@ $txtFile = [System.Windows.Forms.TextBox]::new()
 $txtFile.Location = [System.Drawing.Point]::new(10, $y)
 $txtFile.Size = [System.Drawing.Size]::new(270, 23)
 $txtFile.ReadOnly = $true
-$txtFile.BackColor = [System.Drawing.Color]::FromArgb(18, 12, 38)
-$txtFile.ForeColor = [System.Drawing.Color]::FromArgb(245, 234, 255)
-$txtFile.BorderStyle = 'FixedSingle'
 [void]$panelControls.Controls.Add($txtFile)
 $btnBrowse = [System.Windows.Forms.Button]::new()
 $btnBrowse.Text = 'Browse...'
 $btnBrowse.Location = [System.Drawing.Point]::new(285, $y - 1)
 $btnBrowse.Size = [System.Drawing.Size]::new(75, 25)
-$btnBrowse.BackColor = [System.Drawing.Color]::FromArgb(46, 26, 76)
-$btnBrowse.ForeColor = [System.Drawing.Color]::FromArgb(245, 234, 255)
-$btnBrowse.FlatStyle = 'Flat'
-$btnBrowse.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(0, 245, 255)
-$btnBrowse.FlatAppearance.BorderSize = 1
 [void]$panelControls.Controls.Add($btnBrowse)
 $y += 35
 
@@ -476,7 +345,6 @@ $separator = [System.Windows.Forms.Label]::new()
 $separator.BorderStyle = 'Fixed3D'
 $separator.Size = [System.Drawing.Size]::new(350, 2)
 $separator.Location = [System.Drawing.Point]::new(10, $y)
-$separator.BackColor = [System.Drawing.Color]::FromArgb(0, 245, 255)
 [void]$panelControls.Controls.Add($separator)
 $y += 15
 
@@ -485,8 +353,6 @@ $y += 25
 $numMonW = Add-NumberControl -Top $y -Minimum 500 -Maximum 7680 -Value 1440 -Left 10
 $lblX = Add-Label 'x' ($y + 3)
 $lblX.Location = [System.Drawing.Point]::new(118, $y + 3)
-$lblX.ForeColor = [System.Drawing.Color]::FromArgb(245, 234, 255)
-$lblX.BackColor = [System.Drawing.Color]::FromArgb(35, 18, 61)
 $numMonH = Add-NumberControl -Top $y -Minimum 500 -Maximum 7680 -Value 2560 -Left 135
 
 $y += 35
@@ -497,8 +363,6 @@ $chkCutGrill.Text = 'Crop embedded grill from backglass'
 $chkCutGrill.Location = [System.Drawing.Point]::new(10, $y)
 $chkCutGrill.AutoSize = $true
 $chkCutGrill.Enabled = $false
-$chkCutGrill.BackColor = [System.Drawing.Color]::FromArgb(35, 18, 61)
-$chkCutGrill.ForeColor = [System.Drawing.Color]::FromArgb(245, 234, 255)
 [void]$panelControls.Controls.Add($chkCutGrill)
 
 $y += 35
@@ -523,15 +387,11 @@ $numGap = Add-NumberControl -Top $y -Minimum 0 -Maximum 500 -Value 25 -Left 150
 $y += 40
 $btnSave = [System.Windows.Forms.Button]::new()
 $btnSave.Text = 'Generate .res File'
-$btnSave.Font = [System.Drawing.Font]::new([System.Drawing.SystemFonts]::MessageBoxFont.FontFamily, 10.0, [System.Drawing.FontStyle]::Bold)
+$btnSave.Font = [System.Drawing.Font]::new($btnSave.Font, [System.Drawing.FontStyle]::Bold)
 $btnSave.Size = [System.Drawing.Size]::new(350, 40)
 $btnSave.Location = [System.Drawing.Point]::new(10, $y)
-$btnSave.BackColor = [System.Drawing.Color]::FromArgb(46, 26, 76)
-$btnSave.ForeColor = [System.Drawing.Color]::FromArgb(245, 234, 255)
+$btnSave.BackColor = [System.Drawing.Color]::LightGreen
 $btnSave.Enabled = $false
-$btnSave.FlatStyle = 'Flat'
-$btnSave.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(255, 79, 216)
-$btnSave.FlatAppearance.BorderSize = 2
 [void]$panelControls.Controls.Add($btnSave)
 
 $y += 50
@@ -541,20 +401,15 @@ $txtStatus.ReadOnly = $true
 $txtStatus.ScrollBars = 'Vertical'
 $txtStatus.Size = [System.Drawing.Size]::new(350, 200)
 $txtStatus.Location = [System.Drawing.Point]::new(10, $y)
-$txtStatus.BackColor = [System.Drawing.Color]::FromArgb(18, 12, 38)
-$txtStatus.ForeColor = [System.Drawing.Color]::FromArgb(245, 234, 255)
-$txtStatus.BorderStyle = 'FixedSingle'
 [void]$panelControls.Controls.Add($txtStatus)
 
 $picPreview = [System.Windows.Forms.PictureBox]::new()
 $picPreview.Size = [System.Drawing.Size]::new(480, 780)
 $picPreview.Location = [System.Drawing.Point]::new(400, 10)
-$picPreview.BackColor = [System.Drawing.Color]::FromArgb(10, 8, 25)
+$picPreview.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 30)
 $picPreview.BorderStyle = 'FixedSingle'
 $picPreview.SizeMode = 'Normal'
 [void]$form.Controls.Add($picPreview)
-
-Apply-VaporwaveTheme
 
 function Update-Preview {
     if ($null -eq $script:State.Backglass) { return }
@@ -612,15 +467,7 @@ Grill is embedded in the backglass image and does not have a separate ScreenRes 
     $bitmap = [System.Drawing.Bitmap]::new($canvasWidth, $canvasHeight)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     try {
-        $graphics.Clear([System.Drawing.Color]::FromArgb(10, 8, 25))
-        $gridColor = [System.Drawing.Color]::FromArgb(60, 35, 90)
-        for ($x = 0; $x -lt $canvasWidth; $x += 24) {
-            $graphics.DrawLine([System.Drawing.Pens]::FromArgb(60, 35, 90), $x, 0, $x, $canvasHeight)
-        }
-        for ($yGrid = 0; $yGrid -lt $canvasHeight; $yGrid += 24) {
-            $graphics.DrawLine([System.Drawing.Pens]::FromArgb(60, 35, 90), 0, $yGrid, $canvasWidth, $yGrid)
-        }
-
+        $graphics.Clear([System.Drawing.Color]::FromArgb(30, 30, 30))
         $scale = [math]::Min(($canvasWidth - 40) / $layout.MonitorWidth, ($canvasHeight - 40) / $layout.MonitorHeight)
         $drawMonitorWidth = [int][math]::Round($layout.MonitorWidth * $scale)
         $drawMonitorHeight = [int][math]::Round($layout.MonitorHeight * $scale)
@@ -628,7 +475,7 @@ Grill is embedded in the backglass image and does not have a separate ScreenRes 
         $originY = [int][math]::Round(($canvasHeight - $drawMonitorHeight) / 2)
         $monitorRect = [System.Drawing.Rectangle]::new($originX, $originY, $drawMonitorWidth, $drawMonitorHeight)
         $graphics.FillRectangle([System.Drawing.Brushes]::Black, $monitorRect)
-        $graphics.DrawRectangle([System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(0, 245, 255), 2), $monitorRect)
+        $graphics.DrawRectangle([System.Drawing.Pens]::Cyan, $monitorRect)
 
         $drawBgX = $originX + [int][math]::Round($layout.BackglassX * $scale)
         $drawBgY = $originY + [int][math]::Round($layout.BackglassY * $scale)
@@ -637,7 +484,7 @@ Grill is embedded in the backglass image and does not have a separate ScreenRes 
         $sourceRect = [System.Drawing.Rectangle]::new(0, 0, $layout.SourceWidth, $layout.SourceHeight)
         $destinationRect = [System.Drawing.Rectangle]::new($drawBgX, $drawBgY, $drawBgW, $drawBgH)
         $graphics.DrawImage($script:State.Backglass, $destinationRect, $sourceRect, [System.Drawing.GraphicsUnit]::Pixel)
-        $graphics.DrawRectangle([System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 79, 216), 2), $destinationRect)
+        $graphics.DrawRectangle([System.Drawing.Pens]::Yellow, $destinationRect)
 
         if (-not $secondaryIsGrill) {
             $drawSecondaryX = $originX + [int][math]::Round($layout.SecondaryX * $scale)
@@ -652,7 +499,7 @@ Grill is embedded in the backglass image and does not have a separate ScreenRes 
                 $graphics.FillRectangle([System.Drawing.Brushes]::DarkGray, $secondaryRect)
                 $graphics.DrawString('No FullDMD Found', [System.Drawing.SystemFonts]::DefaultFont, [System.Drawing.Brushes]::White, $drawSecondaryX + 5, $drawSecondaryY + 5)
             }
-            $graphics.DrawRectangle([System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 191, 92), 2), $secondaryRect)
+            $graphics.DrawRectangle([System.Drawing.Pens]::OrangeRed, $secondaryRect)
         }
         else {
             $grillLabel = 'Grill is embedded in BackglassImage and has no separate ScreenRes position.'
